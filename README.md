@@ -32,12 +32,19 @@ This API provides a complete solution for managing consultant assignments and tr
 
 ```
 ConsultantManagementApi/
-├── Controllers/          # API Controllers
+├── Configuration/       # Configuration Classes (Strongly-Typed DI)
+│   ├── JwtSettings.cs
+│   ├── DatabaseSettings.cs
+│   └── CorsSettings.cs
+├── Controllers/         # API Controllers
 │   ├── AuthController.cs
 │   ├── ConsultantsController.cs
 │   ├── RolesController.cs
 │   ├── TasksController.cs
 │   └── WorkEntriesController.cs
+├── Middleware/          # Custom Middleware
+│   ├── ExceptionHandlingMiddleware.cs
+│   └── RequestLoggingMiddleware.cs
 ├── Models/              # Domain Models
 │   ├── Consultant.cs
 │   ├── ConsultantRole.cs
@@ -53,9 +60,11 @@ ConsultantManagementApi/
 │   └── WorkEntryDtos.cs
 ├── Data/                # Database Context
 │   └── AppDbContext.cs
-└── Services/            # Business Services
-    ├── IJwtService.cs
-    └── JwtService.cs
+├── Services/            # Business Services
+│   ├── IJwtService.cs
+│   └── JwtService.cs
+├── Migrations/          # Entity Framework Migrations
+└── Program.cs           # Application Configuration & DI Setup
 ```
 
 ## Getting Started
@@ -90,6 +99,51 @@ ConsultantManagementApi/
 
 The API will start on `https://localhost:5001` (or `http://localhost:5000`)
 
+### Configuration
+
+The application uses strongly-typed dependency injection for configuration. All settings are defined in `appsettings.json` and can be overridden with environment variables.
+
+#### Configuration Sections
+
+**JWT Settings** (`appsettings.json`):
+```json
+"JwtSettings": {
+  "SecretKey": "YourSuperSecretKeyThatIsAtLeast32CharactersLong!",
+  "Issuer": "ConsultantManagementApi",
+  "Audience": "ConsultantManagementApiUsers",
+  "ExpirationMinutes": 480
+}
+```
+
+**Database Settings**:
+```json
+"DatabaseSettings": {
+  "ConnectionString": "Data Source=consultantmanagement.db"
+}
+```
+
+**CORS Settings**:
+```json
+"CorsSettings": {
+  "AllowedOrigins": ["http://localhost:3000", "http://localhost:5000"]
+}
+```
+
+#### Environment Variable Overrides
+
+For production deployments, override settings using environment variables with double underscores:
+
+```bash
+# Override JWT Secret
+export JwtSettings__SecretKey="your-production-secret-key"
+
+# Override Database Connection
+export DatabaseSettings__ConnectionString="Data Source=/data/production.db"
+
+# Override CORS Origins
+export CorsSettings__AllowedOrigins="https://yourdomain.com"
+```
+
 ### Database Setup
 
 The SQLite database is automatically created and seeded with initial data when the application starts:
@@ -98,6 +152,13 @@ The SQLite database is automatically created and seeded with initial data when t
 - **Default Roles**:
   - Consultant Level 1: $50/hour
   - Consultant Level 2: $75/hour
+
+### Middleware
+
+The application includes two custom middleware components:
+
+1. **ExceptionHandlingMiddleware**: Catches unhandled exceptions and returns standardized error responses
+2. **RequestLoggingMiddleware**: Logs all HTTP requests with timing information and status codes
 
 ## API Documentation
 
