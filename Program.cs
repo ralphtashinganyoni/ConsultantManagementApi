@@ -1,4 +1,5 @@
 using System.Text;
+using ConsultantManagementApi.Configuration;
 using ConsultantManagementApi.Data;
 using ConsultantManagementApi.Middleware;
 using ConsultantManagementApi.Services;
@@ -18,13 +19,23 @@ if (!builder.Environment.IsDevelopment() && OperatingSystem.IsWindows())
     builder.Logging.AddEventLog();
 }
 
+// Bind strongly-typed configuration objects
+builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services.Configure<CorsSettings>(builder.Configuration.GetSection("CorsSettings"));
+
+// Configure Database
+var databaseSettings = builder.Configuration.GetSection("DatabaseSettings").Get<DatabaseSettings>()
+    ?? new DatabaseSettings();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=consultantmanagement.db"));
+    options.UseSqlite(databaseSettings.ConnectionString));
 
 builder.Services.AddScoped<IJwtService, JwtService>();
 
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "YourSuperSecretKeyThatIsAtLeast32CharactersLong!";
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
+    ?? throw new InvalidOperationException("JwtSettings configuration is missing");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -39,9 +50,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"] ?? "ConsultantManagementApi",
-        ValidAudience = jwtSettings["Audience"] ?? "ConsultantManagementApiUsers",
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        ValidIssuer = jwtSettings.Issuer,
+        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
     };
 });
 
@@ -77,11 +88,15 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Configure CORS with strongly-typed settings
+var corsSettings = builder.Configuration.GetSection("CorsSettings").Get<CorsSettings>()
+    ?? new CorsSettings();
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowConfiguredOrigins", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(corsSettings.AllowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -105,7 +120,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowAll");
+app.UseCors("AllowConfiguredOrigins");
 
 app.UseStaticFiles();
 

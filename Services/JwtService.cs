@@ -1,28 +1,25 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using ConsultantManagementApi.Configuration;
 using ConsultantManagementApi.Models;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace ConsultantManagementApi.Services;
 
 public class JwtService : IJwtService
 {
-    private readonly IConfiguration _configuration;
+    private readonly JwtSettings _jwtSettings;
 
-    public JwtService(IConfiguration configuration)
+    public JwtService(IOptions<JwtSettings> jwtSettings)
     {
-        _configuration = configuration;
+        _jwtSettings = jwtSettings.Value;
     }
 
     public string GenerateToken(User user)
     {
-        var jwtSettings = _configuration.GetSection("JwtSettings");
-        var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
-        var issuer = jwtSettings["Issuer"] ?? "ConsultantManagementApi";
-        var audience = jwtSettings["Audience"] ?? "ConsultantManagementApiUsers";
-
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -34,10 +31,10 @@ public class JwtService : IJwtService
         };
 
         var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
+            issuer: _jwtSettings.Issuer,
+            audience: _jwtSettings.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes),
             signingCredentials: credentials
         );
 
